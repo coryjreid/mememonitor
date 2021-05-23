@@ -1,0 +1,17 @@
+botToken = 00000000000000000000000000000000000000000000000000000000000
+channelId = 000000000000000000
+validFileExtensions = [
+    "jpg",
+    "jpeg",
+    "gif",
+    "png",
+    "mp4"
+]
+validDomainNames = [
+    "reddit.com",
+    "facebook.com",
+    "giphy.com",
+    "tenor.com",
+    "imgur.com",
+    "instagram.com"
+]

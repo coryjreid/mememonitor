@@ -1,0 +1,36 @@
+plugins {
+    id 'java'
+    id'application'
+    id'com.github.johnrengelman.shadow' version '5.2.0'
+}
+
+mainClassName = 'com.coryjreid.mememonitor.MemeMonitor'
+
+group 'com.coryjreid'
+version '1.0-SNAPSHOT'
+
+def jdaVersion = '4.2.1_253'
+def logbackVersion = '1.2.3'
+def junitVersion = '5.7.0'
+def typesafeConfigVersion = '1.4.1'
+
+repositories {
+    mavenCentral()
+    maven {
+        url 'https://m2.dv8tion.net/releases'
+    }
+}
+
+dependencies {
+    implementation "net.dv8tion:JDA:$jdaVersion"
+    implementation "ch.qos.logback:logback-classic:$logbackVersion"
+    implementation "com.typesafe:config:$typesafeConfigVersion"
+    testImplementation "org.junit.jupiter:junit-jupiter-api:$junitVersion"
+    testRuntimeOnly "org.junit.jupiter:junit-jupiter-engine:$junitVersion"
+}
+
+test {
+    useJUnitPlatform()
+}
+
+compileJava.options.encoding = 'UTF-8'
