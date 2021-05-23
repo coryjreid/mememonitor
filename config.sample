@@ -13,5 +13,10 @@ validDomainNames = [
     "giphy.com",
     "tenor.com",
     "imgur.com",
-    "instagram.com"
+    "instagram.com",
+    "tiktok.com",
+    "youtube.com",
+    "webtoons.com",
+    "twitter.com",
+    "discordapp.com"
 ]
