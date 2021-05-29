@@ -18,6 +18,7 @@ import java.io.File;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -58,11 +59,7 @@ public class MemeMonitor implements EventListener {
                 final String messageContent = message.getContentRaw();
                 final List<Attachment> attachments = message.getAttachments();
 
-                final int numberAttachments = attachments.size();
-                final int numberValidAttachments = attachments.stream().mapToInt(value -> config.getStringList(VALID_FILE_EXTENSIONS_KEY).contains(value.getFileExtension()) ? 1 : 0).sum();
-
-                if (messageContent.isBlank() ^ !isValidUrl(messageContent) ^ (numberAttachments > 0 && numberAttachments != numberValidAttachments)) {
-
+                if (isInvalidMessage(message)) {
                     logger.info("Deleting message from " +
                             message.getAuthor() +
                             "\n\tcontent: \"" +
@@ -71,6 +68,13 @@ public class MemeMonitor implements EventListener {
                             attachments.stream().map(Attachment::getFileName).collect(Collectors.joining(", ")));
 
                     message.delete().reason("Not a link or media file").queue();
+                } else {
+                    logger.info("Message permitted from " +
+                            message.getAuthor() +
+                            "\n\tcontent: \"" +
+                            messageContent +
+                            "\"\n\tattachments: " +
+                            attachments.stream().map(Attachment::getFileName).collect(Collectors.joining(", ")));
                 }
             }
         }
@@ -83,5 +87,18 @@ public class MemeMonitor implements EventListener {
         } catch (final Exception ignoredException) {
             return false;
         }
+    }
+
+    private static boolean isInvalidMessage(final Message message) {
+        final List<Attachment> attachments = message.getAttachments();
+        final int numberValidAttachments = attachments.stream().mapToInt(value -> config.getStringList(VALID_FILE_EXTENSIONS_KEY).contains(value.getFileExtension()) ? 1 : 0).sum();
+
+        final int numberValidUrls = Arrays.stream(message.getContentRaw().split(" ")).mapToInt(value -> isValidUrl(value) ? 1 : 0).sum();
+
+        final boolean attachmentsAreValid = (attachments.size() > 0 && numberValidAttachments != attachments.size());
+        final boolean urlsAreValid = numberValidUrls < 1;
+        final boolean mentionsExist = message.getMentions().size() > 0 || message.getMentionedMembers().size() > 0;
+
+        return (attachmentsAreValid && !urlsAreValid) ^ (!attachmentsAreValid && urlsAreValid) ^ (attachmentsAreValid && urlsAreValid) ^ ((attachmentsAreValid || urlsAreValid) && mentionsExist);
     }
 }
