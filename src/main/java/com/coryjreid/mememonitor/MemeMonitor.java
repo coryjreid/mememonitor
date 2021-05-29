@@ -59,7 +59,14 @@ public class MemeMonitor implements EventListener {
                 final String messageContent = message.getContentRaw();
                 final List<Attachment> attachments = message.getAttachments();
 
-                if (isInvalidMessage(message)) {
+                if (isValidMessage(message)) {
+                    logger.info("Message permitted from " +
+                            message.getAuthor() +
+                            "\n\tcontent: \"" +
+                            messageContent +
+                            "\"\n\tattachments: " +
+                            attachments.stream().map(Attachment::getFileName).collect(Collectors.joining(", ")));
+                } else {
                     logger.info("Deleting message from " +
                             message.getAuthor() +
                             "\n\tcontent: \"" +
@@ -68,37 +75,44 @@ public class MemeMonitor implements EventListener {
                             attachments.stream().map(Attachment::getFileName).collect(Collectors.joining(", ")));
 
                     message.delete().reason("Not a link or media file").queue();
-                } else {
-                    logger.info("Message permitted from " +
-                            message.getAuthor() +
-                            "\n\tcontent: \"" +
-                            messageContent +
-                            "\"\n\tattachments: " +
-                            attachments.stream().map(Attachment::getFileName).collect(Collectors.joining(", ")));
                 }
             }
         }
     }
 
-    private static boolean isValidUrl(final String url) {
+    private static boolean isUrl(final String text) {
         try {
-            new URL(url).toURI();
-            return config.getStringList(VALID_DOMAIN_NAMES_KEY).stream().mapToInt(validUrl -> url.contains(validUrl) ? 1 : 0).sum() > 0;
+            new URL(text).toURI();
+            return true;
         } catch (final Exception ignoredException) {
             return false;
         }
     }
 
-    private static boolean isInvalidMessage(final Message message) {
+    private static boolean isPermittedUrl(final String text) {
+        for (final String validUrl : config.getStringList(VALID_DOMAIN_NAMES_KEY)) {
+            if (isUrl(text) && text.contains(validUrl)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean isValidMessage(final Message message) {
+        final String messageContent = message.getContentRaw();
+        final String[] messageParts = messageContent.split(" ");
         final List<Attachment> attachments = message.getAttachments();
+
         final int numberValidAttachments = attachments.stream().mapToInt(value -> config.getStringList(VALID_FILE_EXTENSIONS_KEY).contains(value.getFileExtension()) ? 1 : 0).sum();
 
-        final int numberValidUrls = Arrays.stream(message.getContentRaw().split(" ")).mapToInt(value -> isValidUrl(value) ? 1 : 0).sum();
+        final int numberUrls = Arrays.stream(messageParts).mapToInt(value -> isUrl(value) ? 1 : 0).sum();
+        final int numberValidUrls = Arrays.stream(messageParts).mapToInt(value -> isPermittedUrl(value) ? 1 : 0).sum();
 
-        final boolean attachmentsAreValid = (attachments.size() > 0 && numberValidAttachments != attachments.size());
-        final boolean urlsAreValid = numberValidUrls < 1;
-        final boolean mentionsExist = message.getMentions().size() > 0 || message.getMentionedMembers().size() > 0;
+        final boolean allUrlsValid = numberUrls == numberValidUrls;
+        final boolean allAttachmentsValid = attachments.size() == numberValidAttachments;
 
-        return (attachmentsAreValid && !urlsAreValid) ^ (!attachmentsAreValid && urlsAreValid) ^ (attachmentsAreValid && urlsAreValid) ^ ((attachmentsAreValid || urlsAreValid) && mentionsExist);
+        final boolean containsMentions = message.getMentions().size() > 0 || message.getMentionedMembers().size() > 0;
+
+        return allUrlsValid && allAttachmentsValid && (containsMentions || messageContent.isEmpty() || numberValidUrls == messageParts.length);
     }
 }
